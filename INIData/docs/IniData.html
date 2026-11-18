@@ -1,0 +1,279 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML LANG="ja">
+<HEAD>
+<TITLE>IniDataライブラリ　公式ガイドブック</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=Shift_JIS">
+<STYLE TYPE="text/css">
+<!--
+H1 {FONT-SIZE:36px; BORDER-WIDTH:1px; BORDER-COLOR:#000000; BORDER-STYLE:SOLID; PADDING:20px; BACKGROUND-COLOR:#E0E0D0; TEXT-ALIGN:CENTER;}
+H2 {FONT-SIZE:28px; BORDER-WIDTH:1px; BORDER-COLOR:#000000; BORDER-STYLE:SOLID; PADDING:20px; BACKGROUND-COLOR:#E0E0D0}
+H3 {FONT-SIZE:24px;}
+H4 {FONT-SIZE:16px;}
+H5 {FONT-SIZE:14px;}
+H6 {FONT-SIZE:12px;}
+P {FONT-SIZE:12px; LINE-HEIGHT:18px;}
+DIV {FONT-SIZE:12px; LINE-HEIGHT:18px;}
+DIV.INDEX {FONT-SIZE:14px; LINE-HEIGHT:18px;}
+DIV.TITLE {FONT-SIZE:12px; LINE-HEIGHT:18px;}
+SPAN.RED {FONT-SIZE:12px; COLOR:#FF0000; LINE-HEIGHT:18px;}
+SPAN.KEYWORD {FONT-SIZE:12px; COLOR:#0000FF; LINE-HEIGHT:18px;}
+SPAN.COMMENT {FONT-SIZE:12px; COLOR:#008000; LINE-HEIGHT:18px;}
+SPAN.STRING {FONT-SIZE:12px; COLOR:#808000; LINE-HEIGHT:18px;}
+LI {FONT-SIZE:12px; LINE-HEIGHT:18px;}
+TABLE {FONT-SIZE:12px; LINE-HEIGHT:18px;}
+TH {BACKGROUND-COLOR:#FFE0B0; FONT-WEIGHT:NORMAL;}
+TR {BACKGROUND-COLOR:#FFFFD0; FONT-WEIGHT:NORMAL;}
+PRE {FONT-SIZE:12px; LINE-HEIGHT:18px; BACKGROUND-COLOR:#E0E0E0; PADDING:1px;}
+-->
+</STYLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFFF" ALINK="#0040FF" VLINK="#0040FF">
+
+<H1>IniDataライブラリ<BR>公式ガイドブック<BR><FONT SIZE=3>(C)2002-2024 くず</FONT></H1>
+
+<H3>はじめに</H3>
+
+<P>　『IniDataライブラリ』は、フリーでオープンソースの、iniファイル作成・編集用ライブラリです。このライブラリは、*.iniファイルへの高速な入出力、スペース終了文字列の正常な設定・取得、UTF-16LE(BOM付)・UTF8への対応、64bitへの対応を実現すべく、従来
+の GetPrivateProfileString / GetPrivateProfileInt / WritePrivateProfileString の代替関数を提供し、IniData_Loadで一括読み込み、IniData_Saveで一括保存する機能を有します。</P>
+
+<P>本ライブラリは、C言語で記述されており、無制限のセクション数・項目数のiniファイルに対応しております。簡便のため、コメントの読み込みと保存は省略しています。BOMなしiniファイルは、ANSIではなくUTF-8として取り扱います。</P>
+
+<H3>もくじ</H3>
+<DIV CLASS="INDEX"><A HREF="#IniOverview">第1章　概略</A></DIV>
+<DIV CLASS="INDEX">　　<A HREF="#IniOverview_Ini">1-1.Iniファイルについて</A></DIV>
+<DIV CLASS="INDEX">　　<A HREF="#IniOverview_Write">1-2.IniDataライブラリでIniファイルに書き込む</A></DIV>
+<DIV CLASS="INDEX">　　<A HREF="#IniOverview_Load">1-3.IniDataライブラリでIniファイルから読み込む</A></DIV>
+<DIV CLASS="INDEX"><A HREF="#IniData">第2章　Iniデータ</A></DIV>
+<DIV CLASS="INDEX">　　<A HREF="#IniData_Struct">2-1.Iniデータの構造</A></DIV>
+<DIV CLASS="INDEX">　　<A HREF="#IniData_Function">2-2.Iniデータの関数</A></DIV>
+<DIV CLASS="INDEX"><A HREF="#APPENDIX_D">付録D　更新履歴</A></DIV>
+
+
+<H2><A NAME="IniOverview">第1章：概略</A></H2>
+
+
+<H3><A NAME="IniOverview_Ini">1-1.iniファイルについて</A></H3>
+<P>　iniファイルとは、ソフトウェアの環境などを保持しておくためのテキストファイルで、拡張子はiniであり、exeファイルと同じフォルダに置かれることが多い。Windows95までは、iniファイルに書き込む関数として、WritePrivateProfileString 関数が、読み込み関数として、GetPrivateProfeilString、GetPrivateProfileInt関数が用意されていたが、現在ではこれらの関数は非推奨となっている。また、1項目読み書きするたびにfopen/fcloseをするため、大変起動と終了が遅くなる弱点があり、場合によってはファイルが破損する。また、スペースで終わる文字列が正しく読み書きできない問題点がある。</P>
+
+<DIV>▼List1-1-1　iniファイルの例</DIV>
+<PRE>
+;コメント
+[Section01]
+Key01=あああ
+Key02=123
+[Section02]
+Key01=いいい
+Key02=456
+</PRE>
+
+
+<P>　これを防ぐため、Microsoftは一貫してiniファイルの代わりにレジストリを使うよう勧めている。しかし、レジストリへのアクセスは難易度が高く、危険であり、また、ユーザーが確認・編集すると破損する恐れがあり、最悪Windows全体の破損リスクがある。また、レジストリを使うたびにレジストリが肥大化し、Windowsが遅く重くなるという弱点がある。アプリケーションがポータブルにならないという問題点もある。そのため、exeファイルと同じフォルダにiniファイルを置くことが依然として安全面や確認・編集のしやすさの点で有効である。また、iniファイルは破損しても、iniファイルを削除してしまえば、従来仕様関数の性質上、すべてデフォルトの値で自動復活するという長所がある。</P>
+
+<P>　このライブラリは、従来通りiniファイル方式を採用するために、上記の旧関数の代替え関数を用意し、全項目まとめて読み込み、全項目まとめて保存する関数を用意することで、高速化を図るとともに、スペースで終わる文字列の正しい読み書きを実現した。また、Unicodeに対応するため、BOM付UTF-16LE、BOM付UTF-8、BOM無しUTF-8をサポートした。また、64bitに対応した。BOM付UTF-16LEは、従来のiniファイルと互換性がある。</P>
+
+
+
+<H3><A NAME="IniOverview_Write">1-2.IniデータライブラリでIniファイルに書き込む</A></H3>
+
+<P>　まず、Iniファイルに文字列や整数値を書き込むサンプルプログラムを示す。</P>
+
+<DIV>▼List1-2-1　Iniファイルに文字列や整数値を書き込む例</DIV>
+<PRE>
+<SPAN CLASS="COMMENT">/* 使用例 */</SPAN>
+<SPAN CLASS="KEYWORD">#include</SPAN> &lt;stdio.h&gt;
+<SPAN CLASS="KEYWORD">#include</SPAN> &lt;tchar.h&gt;
+<SPAN CLASS="KEYWORD">#include</SPAN> &lt;IniData.h&gt;
+<SPAN CLASS="KEYWORD">int</SPAN> _tmain () {
+	<SPAN CLASS="RED">IniData* pIniData = IniData_Load (_T("d:\\Test.ini"), 0);</SPAN>
+	<SPAN CLASS="KEYWORD">if</SPAN> (pIniData == NULL) {
+		<SPAN CLASS="RED">pIniData = IniData_Create (0);</SPAN> <SPAN CLASS="COMMENT"> /* 空のIniDataオブジェクトを作成 */</SPAN>
+		<SPAN CLASS="KEYWORD">if</SPAN> (pIniData == NULL) {
+			_tprintf (_T(<SPAN CLASS="STRING">"IniDataオブジェクトの生成に失敗しました。\n"</SPAN>));
+			<SPAN CLASS="KEYWORD">return</SPAN> 0;
+		}
+	}
+	<SPAN CLASS="RED">IniData_SetString (pIniData, _T("Section01"), _T("ABC"), _T("DEF"));</SPAN>
+	<SPAN CLASS="RED">IniData_SetIntPtr (pIniData, _T("Section02"), _T("XYZ"), 999);</SPAN>
+	<SPAN CLASS="RED">IniData_Save (_T("d:\\Test.ini", 0));</SPAN>
+	<SPAN CLASS="RED">IniData_Delete (pIniData);</SPAN> <SPAN CLASS="COMMENT">/* IniDataオブジェクトをメモリ上から削除 */</SPAN>
+	pIniData = NULL;
+	<SPAN CLASS="KEYWORD">return</SPAN> 1;
+}
+</PRE>
+
+<DIV>▼List1-2-2　Iniファイル書き込み結果</DIV>
+<PRE>
+[Section01]
+ABC=DEF
+[Section02]
+XYZ=999
+</PRE>
+
+<P>　このプログラムでは、まず既存のiniファイルを開こうとし、存在しなければあるいは開けなければ新しいIniDataオブジェクトを作成している。既存のiniファイルがある場合、そのiniファイルに対して追加で設定し、既存セクションに既存項目がある場合は、その値を上書きすることとなる。そして文字列の項目1行と整数値の項目1行をそれぞれ指定のセクションに設定し、保存して閉じている。最後に、IniDataオブジェクトを削除する。</P>
+
+
+<H3><A NAME="IniOverview_Load">1-3.IniDataライブラリでIniファイルから読み込む</A></H3>
+
+<P>　次に、iniファイルから文字列や整数値を読み込むサンプルプログラムを示す。ここでは先ほどのd:\test.iniを読み込み、ローカル変数に格納している。</P>
+
+<DIV CLASS="TITLE"><A NAME="MIDIData_Dump1">▼List1-3-1.iniファイルから文字列や整数値を読み込むプログラム</A></DIV>
+<PRE>
+<SPAN CLASS="COMMENT">/* 使用例 */</SPAN>
+<SPAN CLASS="KEYWORD">#include</SPAN> &lt;stdio.h&gt;
+<SPAN CLASS="KEYWORD">#include</SPAN> &lt;tchar.h&gt;
+<SPAN CLASS="KEYWORD">#include</SPAN> &lt;IniData.h&gt;
+<SPAN CLASS="KEYWORD">int</SPAN> _tmain () {
+	<SPAN CLASS="RED">IniData* pIniData = IniData_Load (_T("d:\\Test.ini"), 0);</SPAN>
+	<SPAN CLASS="KEYWORD">if</SPAN> (pIniData == NULL) {
+		<SPAN CLASS="RED">pIniData = IniData_Create (0);</SPAN> <SPAN CLASS="COMMENT"> /* 空のIniDataオブジェクトを作成 */</SPAN>
+		<SPAN CLASS="KEYWORD">if</SPAN> (pIniData == NULL) {
+			_tprintf (_T(<SPAN CLASS="STRING">"IniDataオブジェクトの生成に失敗しました。\n"</SPAN>));
+			<SPAN CLASS="KEYWORD">return</SPAN> 0;
+		}
+	}
+	TCHAR szBuf[1024];
+	<SPAN CLASS="RED">IniData_GetString (pIniData, _T("Section01"),_T("ABC"), _T("Default"), szBuf, 1024); </SPAN>
+	INT_PTR nXYZ = <SPAN CLASS="RED">IniData_GetIntPtr (pIniData, _T("Section02"), _T("XYZ"), 111);</SPAN>
+	<SPAN CLASS="RED">IniData_Delete (pIniData);</SPAN> <SPAN CLASS="COMMENT">/* IniDataオブジェクトをメモリ上から削除 */</SPAN>
+	pIniData = NULL;
+	<SPAN CLASS="KEYWORD">return</SPAN> 1;
+}
+</PRE>
+
+<P>　このプログラムでは、まずiniファイルを読み込み、存在しなければ、あるいは開けなければ、空のIniDataオブジェクトを作成する。次に、文字列と整数値の項目を指定のセクションの指定のキーからローカル変数に読み込んでいる。指定のセクションや指定のキーが存在しない場合は、引数で指定したデフォルト値となる。最後に、IniDataオブジェクトを削除する。</P>
+
+
+
+
+<H2><A NAME="IniData">第2章：Iniデータ</A></H2>
+
+<H3><A NAME="IniData_Struct">2-1.Iniデータの構造</A></H3>
+
+<P>　Iniデータオブジェクトは、BOM長さ、BOM本体、可変長セクション配列へのポインタを持っている。可変長セクション配列へのポインタは隠蔽されており、外部からアクセスできないが、ソースコードで内容を確認することができる。また、iniファイルのコメントは読み込みせず、取り扱わないものとしている。</P>
+
+<P>本来のiniファイルは、BOMなしの場合はANSI(日本であればShift-JIS)、BOMありの場合はUTF-16LEのみ許容される。一方、Iniデータライブラリでは、BOMなしの場合はUTF-8として扱われ、BOMありの場合はUTF-16LEとUTF-8が対応していることに注意されたい。互換性があり、Unicodeに対応しているものは、BOMありのUTF-16LEのみなので、これを推奨する。</P>
+
+<DIV CLASS="TITLE"><A NAME="IniData_FieldTable">▼Table2-1.Iniデータ構造体のフィールドと使い方</A></DIV>
+<TABLE WIDTH="100%" BORDER=1 CELLSPACING=1 CELLPADDING=2>
+ <TR>
+  <TH WIDTH="25%">フィールド</TH>
+  <TH WIDTH="75%">使い方</TH>
+ </TR>
+ <TR>
+  <TD><SPAN CLASS="KEYWORD">INT_PTR</SPAN> m_nBOMLen</TD>
+  <TD>iniファイルのBOMの長さ[バイト]。ファイルから読み込んだ場合は、そのBOMを格納する。新規作成ではデフォルトではUTF-16LEの2バイトである。BOM付UTF-16LEのiniファイルは、既存のiniファイルの仕様と互換性があり、かつUnicodeに対応している。ここを手動で書き換えることにより、BOM付UTF-8又はBOMなしのUTF-8に対応することもできるが、既存のiniファイルの仕様を逸脱することとなる。UTF-16BEなどその他のBOMは現時点で対応していない。</TD>
+ </TR>
+ <TR>
+  <TD><SPAN CLASS="KEYWORD">BYTE</SPAN> m_byBOM[8]</TD>
+  <TD>iniファイルのBOM本体。ファイルから読み込んだ場合は、そのBOMを格納する。新規作成ではデフォルトではUTF-16LEの2バイトである。BOM付UTF-16LEのiniファイルは、既存のiniファイルの仕様と互換性があり、かつUnicodeに対応している。ここを手動で書き換えることにより、BOM付UTF-8又はBOMなしのUTF-8に対応することもできるが、既存のiniファイルの仕様を逸脱することとなる。UTF-16BEなどその他のBOMは現時点で対応していない。</TD>
+ </TR>
+ <TR>
+  <TD><SPAN CLASS="">PtrArray*</SPAN> m_pSectionArray</TD>
+  <TD>可変長セクションオブジェクト配列へのポインタ。以降は隠蔽されており、ソースコードが取説となる。</TD>
+ </TR>
+</TABLE>
+
+<H3><A NAME="IniData_Function">2-2.Iniデータの関数</A></H3>
+
+<DIV CLASS="TITLE"><A NAME="MIDIData_FunctionTable">▼Table2-2.IniData公開関数一覧</A></DIV>
+<TABLE WIDTH="100%" BORDER=1 CELLSPACING=1 CELLPADDING=2>
+ <TR>
+  <TH WIDTH="25%">関数定義</TH>
+  <TH WIDTH="25%">引数</TH>
+  <TH WIDTH="10%">戻り値</TH>
+  <TH WIDTH="40%">解説</TH>
+ </TR>
+ <TR>
+  <TD><A NAME="IniData_Create">IniData* IniData_Create <BR>(<SPAN CLASS="KEYWORD">INT_PTR</SPAN> nFlags)</A> </TD>
+  <TD>nFlags:将来用。0を指定する。</TD>
+  <TD>正常終了:Iniデータへのポインタ<BR>異常終了:NULL</TD>
+  <TD>空のIniデータオブジェクトを新規に生成する。デフォルトIniデータオブジェクトは、BOM付UTF-16LEである。</TD>
+ </TR>
+ <TR>
+  <TD><A NAME="IniData_Delete"><SPAN CLASS="KEYWORD">void</SPAN> IniData_Delete <BR>(IniData* pIniData)</A> </TD>
+  <TD>pIniData: Iniデータオブジェクトのポインタ。</TD>
+  <TD>なし</TD>
+  <TD>Iniデータオブジェクトを削除する。</TD>
+ </TR>
+ <TR>
+  <TD><A NAME="IniData_Load">IniData* IniData_Load <BR>(<SPAN CLASS="KEYWORD">const</SPAN> TCHAR* pszFileName, <SPAN CLASS="KEYWORD">INT_PTR</SPAN> nFlags)</A> </TD>
+  <TD>pszFileName: ファイル名<BR>nFlags: 将来用。0を指定する。</TD>
+  <TD>正常終了：Iniデータオブジェクトへのポインタ。<BR>異常終了：NULL。</TD>
+  <TD>IniデータオブジェクトをIniファイルから一括で読み込む。Iniデータオブジェクトには、Iniファイルのコメントを除くすべての内容が含まれております。</TD>
+ </TR>
+ <TR>
+  <TD><A NAME="IniData_Save"><SPAN CLASS="KEYWORD">INT_PTR</SPAN> IniData_Save <BR>(IniData* pIniData, <SPAN CLASS="KEYWORD">const</SPAN> TCHAR* pszFileName, <SPAN CLASS="KEYWORD">INT_PTR</SPAN> nFlags)</A> </TD>
+  <TD>pIniData: Iniデータオブジェクトのポインタ。<BR>pszFileName: ファイル名<BR>nFlags: 将来用。0を指定する。</TD>
+  <TD>正常終了：TRUE。<BR>異常終了：FALSE。</TD>
+  <TD>IniデータオブジェクトをIniファイルに一括で書き込む。Iniデータオブジェクトには、Iniファイルのコメントを除くすべての内容が含まれております。</TD>
+ </TR>
+ <TR>
+  <TD><A NAME="IniData_GetString"><SPAN CLASS="KEYWORD">INT_PTR</SPAN> IniData_GetString <BR>(IniData* pIniData, <SPAN CLASS="KEYWORD">const</SPAN> TCHAR* pszSection, <SPAN CLASS="KEYWORD">const</SPAN> TCHAR* pszKey, <SPAN CLASS="KEYWORD">const</SPAN> TCHAR* pszDefault, TCHAR* szBuf, <SPAN CLASS="KEYWORD">INT_PTR</SPAN> nLen)</A> </TD>
+  <TD>pIniData: IniDataオブジェクトへのポインタ。<BR>pszSection: セクション名文字列。<BR>pszKey: キー名文字列。 <BR>pszDefault: セクション名またはキー名が見つからなかった場合に取得される文字列。<BR>pszBuf: 文字列取得用バッファ<BR>nLen : バッファの長さ(sizeof (TCHAR)単位)</TD>
+  <TD>正常終了：取得した文字列の長さ。<BR>異常終了：-1</TD>
+  <TD>Iniデータオブジェクトの指定セクションの指定キーから文字列を取得する。</TD>
+ </TR>
+ <TR>
+  <TD><A NAME="IniData_GetIntPtr"><SPAN CLASS="KEYWORD">INT_PTR</SPAN> IniData_GetIntPtr <BR>(IniData* pIniData, <SPAN CLASS="KEYWORD">const</SPAN> TCHAR* pszSection, <SPAN CLASS="KEYWORD">const</SPAN> TCHAR* pszKey, <SPAN CLASS="KEYWORD">INT_PTR</SPAN> nDefault)</A> </TD>
+  <TD>pIniData: IniDataオブジェクトへのポインタ。<BR>pszSection: セクション名文字列。<BR>pszKey: キー名文字列。<BR>nDefault: セクション名またはキー名が見つからなかった場合に取得される整数値。</TD>
+  <TD>正常終了：0以外<BR>異常終了：0</TD>
+  <TD>Iniデータオブジェクトの指定セクションの指定キーから整数値を取得する。</TD>
+ </TR>
+ 
+ <TR>
+  <TD><A NAME="IniData_SetString"><SPAN CLASS="KEYWORD">INT_PTR</SPAN> IniData_SetString <BR>(IniData* pIniData, <SPAN CLASS="KEYWORD">const</SPAN> TCHAR* pszSection, <SPAN CLASS="KEYWORD">const</SPAN> TCHAR* pszKey, <SPAN CLASS="KEYWORD">const</SPAN> TCHAR* pszString)</A> </TD>
+  <TD>pIniData: IniDataオブジェクトへのポインタ。<BR>pszSection: セクション名文字列。<BR>pszKey: キー名文字列。 <BR>pszDefault: セクション名またはキー名が見つからなかった場合に取得される文字列。<BR>pszString: 設定する文字列</TD>
+  <TD>正常終了：取得した文字列の長さ。異常終了：-1</TD>
+  <TD>Iniデータオブジェクトの指定セクションの指定キーに文字列を設定する。指定セクションや指定キーがなかった場合は自動的に生成される。</TD>
+ </TR>
+ <TR>
+  <TD><A NAME="IniData_SetIntPtr"><SPAN CLASS="KEYWORD">INT_PTR</SPAN> IniData_SetIntPtr <BR>(IniData* pIniData, <SPAN CLASS="KEYWORD">const</SPAN> TCHAR* pszSection, <SPAN CLASS="KEYWORD">const</SPAN> TCHAR* pszKey, <SPAN CLASS="KEYWORD">INT_PTR</SPAN> nValue)</A> </TD>
+  <TD>pIniData: IniDataオブジェクトへのポインタ。<BR>pszSection: セクション名文字列。<BR>pszKey: キー名文字列。<BR>nValue: 設定する整数値。</TD>
+  <TD>正常終了：0以外<BR>異常終了：0</TD>
+  <TD>Iniデータオブジェクトの指定セクションの指定キーに整数値を設定得する。指定セクションや指定キーがなかった場合は自動的に生成される。</TD>
+ </TR>
+</TABLE>
+
+
+
+
+<H2><A NAME="APPENDIX_D">付録D　更新履歴</A></H2>
+
+<TABLE WIDTH="100%" BORDER=1 CELLSPACING=1 CELLPADDING=2>
+ <TR>
+  <TH>
+   ヴァージョン番号
+  </TH>
+  <TH>
+   リリース年月日
+  </TH>
+  <TH>
+   修正事項
+  </TH>
+ </TR>
+ <TR>
+  <TD>
+   8.1
+  </TD>
+  <TD>
+   2024年3月24日
+  </TD>
+  <TD>
+   <UL>
+    <LI>開発環境をMicrosoft Visual Studio 2022 Community に移行。</LI>
+    <LI>プロジェクトホームページを<A HREF="https://openmidiproject.opal.ne.jp/">https://openmidiproject.opal.ne.jp/</A>に変更。</LI>
+    <LI>初リリース</LI>
+   </UL>
+  </TD>
+ </TR>
+</TABLE>
+
+
+</BODY>
+</HTML>
+
+
+
+
+
+
